@@ -80,6 +80,7 @@ async function newVideo(video,channel) {
 		path: '/api/webhooks/${config.webhook.channel}/${config.webook.token}',
 		method: 'POST',
 		headers: {
+			'User-Agent': 'Xisuma-Discord-YouTube (xisumavoid.com, 1.0.0)',
 			'Content-Type': 'application/json',
 			'Content-Length': Buffer.byteLength(JSON.stringify(data)),
 		},
