@@ -1,103 +1,108 @@
-const Discord 	= require('discord.js'),
-	config 		= require('./config.json');
+const config = require('./config.json');
+const http = require('https');
+const fs = require('fs');
+const util = require('util');
 
-let bot = new Discord.Client(),
-	fs = require('fs'),
-	modules;
-console.log('[MAIN]    Connecting to Discord...')
-bot.login(config.bottoken);
+async function init() {
+	readcache();
+	cache = fs.readFileSync('vidid.tmp', 'utf8');
+	
+	checkchannels();
 
-bot.on('ready', function() {
-	console.log('[MAIN]    Logged on as ' + bot.user.tag);
-	console.log('[MAIN]    Loading commands...');
-	commandcache();
-	bot.user.setPresence({game:{name:"Waiting for Xisuma to upload a video!"}});
-});
-
-let commandcache = function() {
-	let mkcache = function() {
-		let commands = [];
-		fs.readdir('./commands/', function(err,files){
-			if(err) throw err;
-			files.forEach(function(file, index) {
-				console.log('[MAIN]    Loaded command: ' + file.replace('.js', ''));
-				commands[file.replace('.js', '')] = require('./commands/' + file);
-				if(typeof commands[file.replace('.js', '')].init === "function") commands[file.replace('.js', '')].init(bot);
-			});
-		});
-		return commandcache['commands'] = commands;
-	}
-	return this['commands'] != undefined ? this['commands'] : botcommands = mkcache(); 
+	setInterval(() => {
+		console.log('[YOUTUBE] Caching...');
+		checkchannels();
+		console.log(`[YOUTUBE] Scheduling cache in ${config.cachetime} minutes`);
+	}, config.cachetime*60000);
 }
 
-bot.on('message', function(msg) {
-	if(msg.author.bot || msg.author.id === bot.user.id) return;
-	if(msg.content.startsWith(config.prefix) || msg.channel instanceof Discord.DMChannel) {
-        const args = msg.channel instanceof Discord.DMChannel ? msg.content.trim().split(/ +/g) : msg.content.slice(config.prefix.length).trim().split(/ +/g);
-        const command = args.shift().toLowerCase();
-        if(command === "help") {
-        	help(msg);
-        	return;
-        }
-        if(typeof botcommands[command] != "undefined") {
-            botcommands[command].perform(msg,args);
-        } else if (typeof botcommands[command] === "undefined" && msg.channel instanceof Discord.DMChannel) {
-        	msg.channel.send({embed:{
-        		author: {
-        			name: bot.user.username,
-        			icon_url: bot.user.avatarURL,
-        			url: "https://www.youtube.com/user/xisumavoid"
-        		},
-        		color: 0x006600,
-        		title: "Error",
-        		fields: [{
-        			name:'Command not found',
-        			value: `\`${command}\``,
-        		}],
-        	}})
-        }
-    }
-})
-async function help(msg) {
-	let reply = {
-		embed: {
-			author: {
-				name: bot.user.username,
-				icon_url: bot.user.avatarURL,
-				url: "https://www.youtube.com/user/xisumavoid"
-			},
-			color: 0x006600,
-			title: "Help",
-			fields: [],
-		}
+async function checkchannels() {
+	for (var i = config.channels.length - 1; i >= 0; i--) {
+		checkvideo(config.channels[i]);
 	}
-	for (var key in botcommands) {
-		reply.embed.fields.push({
-			name: botcommands[key].help.title,
-			value: '\u200B',
-		});
-		reply.embed.fields.push({
-			name: 'Description',
-			value: botcommands[key].help.description,
-			inline: true,
-		});
-		reply.embed.fields.push({
-			name: "Usage",
-			value: "\`\`\`css\n" + botcommands[key].help.usage + "\`\`\`",
-			inline: true,
-		});
-	}
-	msg.channel.send(reply);
 }
 
-process.once('SIGUSR2', function () {
-    console.log("[DISCORD] Disconnecting");
-    bot.destroy();
-    process.kill(process.pid, 'SIGUSR2');
-});
+async function checkvideo(channel) {
+	console.log(`[YOUTUBE] checking: ${channel}`);
+	let req = http.request({
+		hostname: `www.googleapis.com`,
+		port: 443,
+		path: `/youtube/v3/search?part=snippet&channelId=${channel}&maxResults=1&order=date&type=video&key=${config.google}`,
+		method: `GET`
+		},
+		(res) => {
+		let str = "";
+		res.on('data', function (chunk) {
+			str += chunk;
+		});
+		res.on('end', function () {
+			try {
+				let video = JSON.parse(str).items[0];
+				if(video.id.videoId != cache[channel]) {
+					newVideo(video, channel);
+					writecache(video.id.videoId, channel);
+					console.log(`[YOUTUBE] Cached ${video.id.videoId} - ${video.snippet.title}`);
+				} else {
+					console.log(`[YOUTUBE] No new videos (${channel})`);
+				}
+			} catch(e) {
+				console.log(e,str);
+			}	
+		});
+	});
+	req.on('error', (e) => {
+		console.log(e);
+	});
 
-process.on('SIGTERM', (code) => {
-    console.log("[DISCORD] Disconnecting");
-    bot.destroy();
-    process.exit();
-});
+	req.end();
+}
+
+async function newVideo(video,channel) {
+	let data = {
+		username: 'Xisuma on Youtube',
+		avatar_url: 'https://yt3.ggpht.com/-x5tq4dTokyM/AAAAAAAAAAI/AAAAAAAAAAA/x4s30KOqUVA/s900-c-k-no/photo.jpg',
+		embeds: [
+			{
+				color: config.colors[channel],
+				title: video.snippet.title,
+				image: video.snippet.thumbnails.high,
+				url: `https://youtu.be/${video.id.videoId}`,
+				footer: {
+					text: "Xisumavoid Youtube Notifier"
+				}
+			}
+		]
+	}
+
+	let webhook = http.request({
+		hostname: 'canary.discordapp.com',
+		port: 443,
+		path: '/api/webhooks/${config.webhook.channel}/${config.webook.token}',
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json',
+			'Content-Length': Buffer.byteLength(JSON.stringify(data)),
+		},
+	}, function(res) {
+		res.setEncoding('utf8');
+		res.on('data', function (chunk) {
+		      console.log("body: " + chunk);
+		  });
+	});
+	webhook.write(JSON.stringify(data));
+	webhook.end();
+}
+
+async function readcache() {
+	fs.readFile('vidid.tmp', 'utf8', function(err, contents) {
+		if(err) fs.writeFileSync('vidid.tmp', {encoding: 'utf8'});
+	    cache = JSON.parse(contents);
+	});
+}
+
+async function writecache(data, channel) {
+	cache[channel] = data;
+	//fs.writeFileSync('vidid.tmp', JSON.stringify(cache));
+}
+
+init();
