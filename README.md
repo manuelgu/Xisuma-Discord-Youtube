@@ -1,3 +1,6 @@
+### DEPRECATED
+This branch is deprecated in favor of the `webhook implementation`.  This branch currently only exists for archival reasons and if someone really wants to integrate it in a bot.
+
 # Xisumavoid YouTube notifications 
 Discord notifier for YouTube channels.
 
