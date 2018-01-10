@@ -103,7 +103,7 @@ async function readcache() {
 
 async function writecache(data, channel) {
 	cache[channel] = data;
-	//fs.writeFileSync('vidid.tmp', JSON.stringify(cache));
+	fs.writeFileSync('vidid.tmp', JSON.stringify(cache));
 }
 
 init();
