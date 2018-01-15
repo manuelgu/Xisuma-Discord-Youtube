@@ -3,9 +3,16 @@
 	"cachetime": 5,
 	"channels": [""],
 	"colors": {
+
 	},
-	"webhook":{
-		"token": "",
-		"id": ""
-	}
+	"webhook": {
+		"id": "",
+		"token": ""
+	},
+	"embed": {
+		"avatar": "",
+		"username": "",
+		"footer": ""
+	},
+	"useragent": " (, 1.0.0)"
 }
