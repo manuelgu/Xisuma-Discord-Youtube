@@ -11,47 +11,47 @@ async function main() {
 	checkchannels();
 	setInterval(() => {
 		checkchannels();
-	}, config.cachetime*60000);
+	}, config.cachetime * 60000);
 }
 
 async function checkchannels() {
-	for (var i = config.channels.length - 1; i >= 0; i--) {
+	for (let i = config.channels.length - 1; i >= 0; i--) {
 		checkvideo(config.channels[i]);
 	}
 }
 
 async function checkvideo(channel) {
-	let req = http.request({
+	const req = http.request({
 		hostname: `www.googleapis.com`,
 		port: 443,
 		path: `/youtube/v3/search?part=snippet&channelId=${channel}&maxResults=1&order=date&type=video&key=${config.google}`,
 		method: `GET`
 	}, res => {
 		let str = '';
-		res.on('data', function (chunk) {
+		res.on('data', chunk => {
 			str += chunk;
 		});
-		res.on('end', function () {
+		res.on('end', () => {
 			try {
-				let video = JSON.parse(str).items[0];
+				const video = JSON.parse(str).items[0];
 				if(video.id.videoId != cache[channel]) {
 					announceVideo(video, channel);
 					writecache(video.id.videoId, channel);
 					console.log(`[YOUTUBE] Found ${video.id.videoId} - ${video.snippet.title}`);
 				}
-			} catch(e) {
-				console.log(e,str);
-			}	
+			} catch (e) {
+				console.log(e, str);
+			}
 		});
 	});
-	req.on('error', (e) => {
+	req.on('error', e => {
 		console.log(e);
 	});
 	req.end();
 }
 
 async function announceVideo(video,channel) {
-	let data = {
+	const data = {
 		username: config.embed.username,
 		avatar_url: config.embed.avatar,
 		embeds: [
@@ -65,9 +65,9 @@ async function announceVideo(video,channel) {
 				}
 			}
 		]
-	}
+	};
 
-	let webhook = http.request({
+	const webhook = http.request({
 		hostname: `canary.discordapp.com`,
 		port: 443,
 		path: `/api/webhooks/${config.webhook.id}/${config.webhook.token}`,
@@ -77,12 +77,6 @@ async function announceVideo(video,channel) {
 			'Content-Type': 'application/json',
 			'Content-Length': Buffer.byteLength(JSON.stringify(data)),
 		}
-	}, res => {
-
-		res.setEncoding('utf8');
-		res.on('data', data => {
-			console.log(data);
-		});
 	});
 	webhook.write(JSON.stringify(data));
 	webhook.end();
