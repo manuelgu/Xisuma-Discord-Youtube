@@ -34,7 +34,7 @@ async function checkvideo(channel) {
 		res.on('end', () => {
 			try {
 				const video = JSON.parse(str).items[0];
-				if(video.id.videoId != cache[channel]) {
+				if(video.id.videoId != cache[channel] && !new RegExp(config.blacklist).test(video.snippet.title)) {
 					announceVideo(video, channel);
 					writecache(video.id.videoId, channel);
 					console.log(`[YOUTUBE] Found ${video.id.videoId} - ${video.snippet.title}`);
@@ -73,7 +73,7 @@ async function announceVideo(video,channel) {
 		path: `/api/webhooks/${config.webhook.id}/${config.webhook.token}`,
 		method: 'POST',
 		headers: {
-			'User-Agent': config.useragent,
+			'User-Agent': `${config.embed.username.toLocaleLowerCase()} (${config.embed.username.toLocaleLowerCase()} 1.0.0)`,
 			'Content-Type': 'application/json',
 			'Content-Length': Buffer.byteLength(JSON.stringify(data)),
 		}

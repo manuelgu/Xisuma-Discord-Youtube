@@ -5,6 +5,8 @@
 	"colors": {
 
 	},
+
+	"blacklist": "",
 	"webhook": {
 		"id": "",
 		"token": ""
@@ -14,5 +16,5 @@
 		"username": "",
 		"footer": ""
 	},
-	"useragent": " (, 1.0.0)"
+	"useragent": "%s (%s, 1.0.0)"
 }
